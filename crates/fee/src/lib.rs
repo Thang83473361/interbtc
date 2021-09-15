@@ -43,7 +43,9 @@ use sp_std::{
     fmt::Debug,
     vec::*,
 };
-use types::{BalanceOf, Collateral, SignedFixedPoint, UnsignedFixedPoint, UnsignedInner, Version, Wrapped};
+use types::{
+    BalanceOf, Collateral, DefaultVaultId, SignedFixedPoint, UnsignedFixedPoint, UnsignedInner, Version, Wrapped,
+};
 
 pub use pallet::*;
 
@@ -102,10 +104,14 @@ pub mod pallet {
             + MaybeSerializeDeserialize;
 
         /// Vault reward pool for the wrapped currency.
-        type VaultRewards: reward::Rewards<Self::AccountId, SignedFixedPoint = SignedFixedPoint<Self>>;
+        type VaultRewards: reward::Rewards<DefaultVaultId<Self>, SignedFixedPoint = SignedFixedPoint<Self>>;
 
         /// Vault staking pool for the wrapped currency.
-        type VaultStaking: staking::Staking<Self::AccountId, SignedFixedPoint = SignedFixedPoint<Self>>;
+        type VaultStaking: staking::Staking<
+            DefaultVaultId<Self>,
+            Self::AccountId,
+            SignedFixedPoint = SignedFixedPoint<Self>,
+        >;
 
         /// Handler to transfer undistributed rewards.
         type OnSweep: OnSweep<Self::AccountId, Amount<Self>>;
@@ -257,7 +263,7 @@ pub mod pallet {
         /// * `origin` - signing account
         #[pallet::weight(<T as Config>::WeightInfo::withdraw_rewards())]
         #[transactional]
-        pub fn withdraw_rewards(origin: OriginFor<T>, vault_id: T::AccountId) -> DispatchResultWithPostInfo {
+        pub fn withdraw_rewards(origin: OriginFor<T>, vault_id: DefaultVaultId<T>) -> DispatchResultWithPostInfo {
             ext::security::ensure_parachain_status_not_shutdown::<T>()?;
             let nominator_id = ensure_signed(origin)?;
             Self::withdraw_from_reward_pool::<T::VaultRewards, T::VaultStaking>(&vault_id, &nominator_id)?;
@@ -378,8 +384,8 @@ impl<T: Config> Pallet<T> {
         amount.rounded_mul(percentage)
     }
 
-    pub fn withdraw_all_vault_rewards(account_id: &T::AccountId) -> DispatchResult {
-        Self::distribute_from_reward_pool::<T::VaultRewards, T::VaultStaking>(account_id)?;
+    pub fn withdraw_all_vault_rewards(vault_id: &DefaultVaultId<T>) -> DispatchResult {
+        Self::distribute_from_reward_pool::<T::VaultRewards, T::VaultStaking>(vault_id)?;
         Ok(())
     }
 
@@ -397,10 +403,10 @@ impl<T: Config> Pallet<T> {
 
     /// Withdraw rewards from a pool and transfer to `account_id`.
     fn withdraw_from_reward_pool<
-        Rewards: reward::Rewards<T::AccountId, SignedFixedPoint = SignedFixedPoint<T>>,
-        Staking: staking::Staking<T::AccountId, SignedFixedPoint = SignedFixedPoint<T>>,
+        Rewards: reward::Rewards<DefaultVaultId<T>, SignedFixedPoint = SignedFixedPoint<T>>,
+        Staking: staking::Staking<DefaultVaultId<T>, T::AccountId, SignedFixedPoint = SignedFixedPoint<T>>,
     >(
-        vault_id: &T::AccountId,
+        vault_id: &DefaultVaultId<T>,
         nominator_id: &T::AccountId,
     ) -> DispatchResult {
         Self::distribute_from_reward_pool::<Rewards, Staking>(&vault_id)?;
@@ -420,15 +426,15 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn distribute_from_reward_pool<
-        Rewards: reward::Rewards<T::AccountId, SignedFixedPoint = SignedFixedPoint<T>>,
-        Staking: staking::Staking<T::AccountId, SignedFixedPoint = SignedFixedPoint<T>>,
+        Rewards: reward::Rewards<DefaultVaultId<T>, SignedFixedPoint = SignedFixedPoint<T>>,
+        Staking: staking::Staking<DefaultVaultId<T>, T::AccountId, SignedFixedPoint = SignedFixedPoint<T>>,
     >(
-        account_id: &T::AccountId,
+        vault_id: &DefaultVaultId<T>,
     ) -> DispatchResult {
-        let reward_as_inner = Rewards::withdraw_reward(account_id)?;
+        let reward_as_inner = Rewards::withdraw_reward(vault_id)?;
         let reward_as_fixed =
             Rewards::SignedFixedPoint::checked_from_integer(reward_as_inner).ok_or(Error::<T>::TryIntoIntError)?;
-        Staking::distribute_reward(account_id, reward_as_fixed)?;
+        Staking::distribute_reward(vault_id, reward_as_fixed)?;
         Ok(())
     }
 }
