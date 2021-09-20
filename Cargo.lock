@@ -3521,6 +3521,7 @@ dependencies = [
  "btc-relay",
  "currency",
  "fee",
+ "flate2",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
