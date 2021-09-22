@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["interbtc_runtime_parachain"] = [{"text":"impl&lt;T:&nbsp;Config&gt; BlockNumberProvider for <a class=\"struct\" href=\"interbtc_runtime_parachain/struct.RelayChainBlockNumberProvider.html\" title=\"struct interbtc_runtime_parachain::RelayChainBlockNumberProvider\">RelayChainBlockNumberProvider</a>&lt;T&gt;","synthetic":false,"types":["interbtc_runtime_parachain::RelayChainBlockNumberProvider"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
